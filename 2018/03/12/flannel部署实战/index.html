@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=6.0.6" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.0.6">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.0.6">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.0.6">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.0.6" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '6.0.6',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="本文基于virtualbox和CentOS-7-x86_64-Minimal-1708.iso完成flannel的部署和测试">
+<meta name="keywords" content="flannel,vxlan,centos,网络">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flannel部署实战">
+<meta property="og:url" content="http://frankiezdh.github.io/2018/03/12/flannel部署实战/index.html">
+<meta property="og:site_name" content="frankiezdh">
+<meta property="og:description" content="本文基于virtualbox和CentOS-7-x86_64-Minimal-1708.iso完成flannel的部署和测试">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-05-17T07:51:55.832Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="flannel部署实战">
+<meta name="twitter:description" content="本文基于virtualbox和CentOS-7-x86_64-Minimal-1708.iso完成flannel的部署和测试">
+
+
+
+
+
+
+  <link rel="canonical" href="http://frankiezdh.github.io/2018/03/12/flannel部署实战/"/>
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>flannel部署实战 | frankiezdh</title>
+  
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"> 
+
+<div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">frankiezdh</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+          
+  <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br />Home</a>
+</li>
+
+      
+        
+        
+          
+  <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />Archives</a>
+</li>
+
+      
+
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+  
+
+
+
+ </div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://frankiezdh.github.io/2018/03/12/flannel部署实战/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="frankiezdh">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="frankiezdh">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flannel部署实战</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2018-03-12T18:17:36+08:00">2018-03-12</time>
+            
+
+            
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>本文基于virtualbox和CentOS-7-x86_64-Minimal-1708.iso完成flannel的部署和测试</p>
+<a id="more"></a>
+<h2 id="操作系统的安装和配置"><a href="#操作系统的安装和配置" class="headerlink" title="操作系统的安装和配置"></a>操作系统的安装和配置</h2><ol>
+<li>下载centos iso和使用virtualbox安装，virtualbox至少需要两台虚拟机。iso推荐 <a href="http://mirrors.163.com/centos/7/isos/x86_64/" target="_blank" rel="noopener">163镜像</a>。</li>
+<li>配置系统centos。两台虚拟机都安装如下命令行配置好。<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 关闭firewalld</span></span><br><span class="line">systemctl <span class="built_in">disable</span> firewalld</span><br><span class="line"></span><br><span class="line"><span class="comment"># 关闭NetworkManager</span></span><br><span class="line">systemctl <span class="built_in">disable</span> NetworkManager</span><br><span class="line"></span><br><span class="line"><span class="comment"># 关闭selinux</span></span><br><span class="line">sed -i <span class="string">'s/\(^\s*SELINUX=\).*/\1disabled/g'</span> /etc/selinux/config</span><br><span class="line"></span><br><span class="line"><span class="comment"># 安装软件</span></span><br><span class="line">yum install -y vim bridge-utils screen</span><br><span class="line"></span><br><span class="line"><span class="comment"># 配置网络</span></span><br><span class="line"><span class="built_in">pushd</span> /etc/sysconfig/network-scripts/ &gt; /dev/null</span><br><span class="line">IFACE=$(find -<span class="built_in">type</span> f -name <span class="string">"ifcfg-e*"</span>  | awk -F<span class="string">'/'</span> <span class="string">'&#123;print $NF&#125;'</span>  | sort | sed -n <span class="string">'1p'</span>)</span><br><span class="line">sed -i <span class="string">'s/\(^\s*BOOTPROTO=\).*/\1static/g'</span> <span class="variable">$IFACE</span></span><br><span class="line">sed -i <span class="string">'s/\(^\s*ONBOOT=\).*/\1"yes"/g'</span> <span class="variable">$IFACE</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">'IPADDR=192.168.31.27'</span> &gt;&gt; <span class="variable">$IFACE</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">'NETMASk=255.255.255.0'</span> &gt;&gt; <span class="variable">$IFACE</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">'GATEWAY=192.168.31.1'</span> &gt;&gt; <span class="variable">$IFACE</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">'DNS1=223.5.5.5'</span> &gt;&gt; <span class="variable">$IFACE</span></span><br><span class="line"><span class="built_in">popd</span> &gt; /dev/null</span><br><span class="line"></span><br><span class="line"><span class="comment"># 安装docker</span></span><br><span class="line"><span class="comment"># 参考链接：https://yq.aliyun.com/articles/110806</span></span><br><span class="line"><span class="comment"># 安装必要的一些系统工具</span></span><br><span class="line">yum install -y yum-utils device-mapper-persistent-data lvm2</span><br><span class="line"><span class="comment"># 添加软件源信息</span></span><br><span class="line">yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo</span><br><span class="line"><span class="comment"># 更新并安装 Docker-CE</span></span><br><span class="line">yum makecache fast</span><br><span class="line">yum -y install docker-ce</span><br><span class="line"><span class="comment"># 开启Docker服务</span></span><br><span class="line">service docker start</span><br><span class="line"><span class="comment"># Docker开机启动</span></span><br><span class="line">systemctl <span class="built_in">enable</span> docker</span><br><span class="line"></span><br><span class="line"><span class="comment"># 配置docker加速</span></span><br><span class="line"><span class="comment"># 参考链接：https://yq.aliyun.com/articles/29941</span></span><br><span class="line">mkdir -p /etc/docker</span><br><span class="line">tee /etc/docker/daemon.json &lt;&lt;-<span class="string">'EOF'</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="string">"registry-mirrors"</span>: [<span class="string">"https://xxxxx.mirror.aliyuncs.com"</span>]</span><br><span class="line">&#125;</span><br><span class="line">EOF</span><br><span class="line">systemctl daemon-reload</span><br><span class="line">systemctl restart docker</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重启系统</span></span><br><span class="line">reboot</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2 id="etcd和flannel的安装"><a href="#etcd和flannel的安装" class="headerlink" title="etcd和flannel的安装"></a>etcd和flannel的安装</h2><h3 id="etcd的安装"><a href="#etcd的安装" class="headerlink" title="etcd的安装"></a>etcd的安装</h3><ol>
+<li>从 <a href="https://github.com/coreos/etcd/releases" target="_blank" rel="noopener">https://github.com/coreos/etcd/releases</a> 下载合适的包，解压缩，并将etcd、etcdctl放到$PATH目录下。<br>推荐/sbin</li>
+<li>etcd的自动发现：通过官网自动发现 <a href="https://discovery.etcd.io/new?size=2" target="_blank" rel="noopener">https://discovery.etcd.io/new?size=2</a> ，得到16进制的字符串（比如ef7bb34a532601a66cbb8c08b45de6f6 ），记下这个字符串</li>
+<li>通过下面的命令行对分别对虚拟机启动etcd：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 第1台，将XXXXX替换成第2步获取的16进制字符串</span></span><br><span class="line">screen etcd --name etcd1 --initial-advertise-peer-urls http://192.168.31.59:2380 --listen-peer-urls http://0.0.0.0:2380 --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://192.168.31.59:2379 -discovery https://discovery.etcd.io/XXXXX --initial-cluster-state new</span><br><span class="line"></span><br><span class="line"><span class="comment"># 第2台，将XXXXX替换成第2步获取的16进制字符串</span></span><br><span class="line">screen etcd --name etcd2 --initial-advertise-peer-urls http://192.168.31.232:2380 --listen-peer-urls http://0.0.0.0:2380 --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://192.168.31.232:2379 -discovery https://discovery.etcd.io/XXXXX --initial-cluster-state new</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置flanneld需要的键值对</span></span><br><span class="line">etcdctl <span class="built_in">set</span> /coreos.com/network/config <span class="string">'&#123; "Network": "1.1.0.0/16", "Backend": &#123; "Type": "vxlan", "VNI": 18888 &#125; &#125;'</span></span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h3 id="flannel的安装"><a href="#flannel的安装" class="headerlink" title="flannel的安装"></a>flannel的安装</h3><ol>
+<li>从 <a href="https://github.com/coreos/flannel/releases" target="_blank" rel="noopener">https://github.com/coreos/flannel/releases</a> 下载合适的包，解压缩，并将flanneld、 mk-docker-opts.sh放到$PATH目录下。推荐/sbin</li>
+<li><p>修改docker.service文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sed -i <span class="string">'/ExecStart=/iEnvironmentFile=\/run\/docker_opts.env'</span> /usr/lib/systemd/system/docker.service</span><br><span class="line">sed -i <span class="string">'s/ExecStart=.*/ExecStart=\/usr\/bin\/dockerd \$&#123;DOCKER_OPT_BIP&#125; \$&#123;DOCKER_OPT_IPMASQ&#125; \$&#123;DOCKER_OPT_MTU&#125;/g'</span> /usr/lib/systemd/system/docker.service</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>调用mk-docker-opts.sh生成docker.service需要的参数并重启docker服务</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mk-docker-opts.sh  &amp;&amp; systemctl daemon-reload &amp;&amp; systemctl restart docker</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启动flannel</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">screen flanneld</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2 id="容器间互通"><a href="#容器间互通" class="headerlink" title="容器间互通"></a>容器间互通</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">root@a26d8179ca1e:/<span class="comment"># ip ad</span></span><br><span class="line"><span class="comment"># 容器ip地址为1.1.15.2</span></span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">11: eth0@if12: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1450 qdisc noqueue state UP group default</span><br><span class="line">    link/ether 02:42:01:01:0f:02 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 1.1.15.2/24 brd 1.1.15.255 scope global eth0</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line"><span class="comment"># ping其他容器（不同宿主机）</span></span><br><span class="line">root@a26d8179ca1e:/<span class="comment"># ping 1.1.2.2</span></span><br><span class="line">PING 1.1.2.2 (1.1.2.2) 56(84) bytes of data.</span><br><span class="line">64 bytes from 1.1.2.2: icmp_seq=1 ttl=62 time=0.346 ms</span><br><span class="line">64 bytes from 1.1.2.2: icmp_seq=2 ttl=62 time=0.654 ms</span><br><span class="line">^C</span><br><span class="line">--- 1.1.2.2 ping statistics ---</span><br><span class="line">2 packets transmitted, 2 received, 0% packet loss, time 1000ms</span><br><span class="line">rtt min/avg/max/mdev = 0.346/0.500/0.654/0.154 ms</span><br><span class="line"><span class="comment"># ping外部主机</span></span><br><span class="line">root@a26d8179ca1e:/<span class="comment"># ping 192.168.31.1</span></span><br><span class="line">PING 192.168.31.1 (192.168.31.1) 56(84) bytes of data.</span><br><span class="line">64 bytes from 192.168.31.1: icmp_seq=1 ttl=253 time=0.637 ms</span><br><span class="line">64 bytes from 192.168.31.1: icmp_seq=2 ttl=253 time=0.929 ms</span><br><span class="line">^C</span><br><span class="line">--- 192.168.31.1 ping statistics ---</span><br><span class="line">2 packets transmitted, 2 received, 0% packet loss, time 1000ms</span><br><span class="line">rtt min/avg/max/mdev = 0.637/0.783/0.929/0.146 ms</span><br><span class="line">root@a26d8179ca1e:/<span class="comment">#</span></span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flannel/" rel="tag"># flannel</a>
+          
+            <a href="/tags/vxlan/" rel="tag"># vxlan</a>
+          
+            <a href="/tags/centos/" rel="tag"># centos</a>
+          
+            <a href="/tags/网络/" rel="tag"># 网络</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/03/12/golang实现tcp通信/" rel="next" title="golang实现tcp通信">
+                <i class="fa fa-chevron-left"></i> golang实现tcp通信
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/03/13/flannel源码分析/" rel="prev" title="flannel源码分析">
+                flannel源码分析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">frankiezdh</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">9</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">11</span>
+                    <span class="site-state-item-name">tags</span>
+                  
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#操作系统的安装和配置"><span class="nav-number">1.</span> <span class="nav-text">操作系统的安装和配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#etcd和flannel的安装"><span class="nav-number">2.</span> <span class="nav-text">etcd和flannel的安装</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#etcd的安装"><span class="nav-number">2.1.</span> <span class="nav-text">etcd的安装</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#flannel的安装"><span class="nav-number">2.2.</span> <span class="nav-text">flannel的安装</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#容器间互通"><span class="nav-number">3.</span> <span class="nav-text">容器间互通</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">frankiezdh</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/theme-next/hexo-theme-next">NexT.Pisces</a> v6.0.6</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.0.6"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.0.6"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.0.6"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.0.6"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.0.6"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.0.6"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.0.6"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=6.0.6" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.0.6">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.0.6">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.0.6">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.0.6" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    version: '6.0.6',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="flannel是coreos开源的一个容器网络解决方案。代码地址 本文尝试对flannel的核心代码进行分析，需要对docker和linux网络通信有一些基础的了解。">
+<meta name="keywords" content="flannel,vxlan">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flannel源码分析">
+<meta property="og:url" content="http://frankiezdh.github.io/2018/03/13/flannel源码分析/index.html">
+<meta property="og:site_name" content="frankiezdh">
+<meta property="og:description" content="flannel是coreos开源的一个容器网络解决方案。代码地址 本文尝试对flannel的核心代码进行分析，需要对docker和linux网络通信有一些基础的了解。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-05-17T07:51:55.831Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="flannel源码分析">
+<meta name="twitter:description" content="flannel是coreos开源的一个容器网络解决方案。代码地址 本文尝试对flannel的核心代码进行分析，需要对docker和linux网络通信有一些基础的了解。">
+
+
+
+
+
+
+  <link rel="canonical" href="http://frankiezdh.github.io/2018/03/13/flannel源码分析/"/>
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>flannel源码分析 | frankiezdh</title>
+  
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"> 
+
+<div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">frankiezdh</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+          
+  <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br />Home</a>
+</li>
+
+      
+        
+        
+          
+  <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />Archives</a>
+</li>
+
+      
+
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+  
+
+
+
+ </div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://frankiezdh.github.io/2018/03/13/flannel源码分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="frankiezdh">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="frankiezdh">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flannel源码分析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2018-03-13T09:55:47+08:00">2018-03-13</time>
+            
+
+            
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>flannel是coreos开源的一个容器网络解决方案。<a href="https://github.com/coreos/flannel" target="_blank" rel="noopener">代码地址</a></p>
+<p>本文尝试对flannel的核心代码进行分析，需要对docker和linux网络通信有一些基础的了解。</p>
+<a id="more"></a>
+<h4 id="代码简要分析"><a href="#代码简要分析" class="headerlink" title="代码简要分析"></a>代码简要分析</h4><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 入口main.go</span></span><br><span class="line">main</span><br><span class="line">    LookupExtIface： 输入接口名称或IP，输出*backend.ExternalInterface。主要通过接口名称或是IP获取接口实体（net.Interface）、接口的地址等</span><br><span class="line">    newSubnetManager： 输入无，输出一个subnet.Manager。只是获取了一个etcdv2的实体。此时并未直接和etcd通信</span><br><span class="line">        ReadSubnetFromSubnetFile： 如果有的话，从配置文件（默认是/run/flannel/subnet.env）中读取子网的信息。是为了flanneld进程重启，能够直接从本地恢复，不用从etcd读取。</span><br><span class="line">    shutdownHandler： 信号SIGNAL处理的协程</span><br><span class="line">    mustRunHealthz：注册检查flannel是否健康的http服务</span><br><span class="line">    getConfig：从etcd中读取配置（类似这样的配置&#123; <span class="string">"Network"</span>: <span class="string">"1.1.0.0/16"</span>, <span class="string">"Backend"</span>: &#123; <span class="string">"Type"</span>: <span class="string">"vxlan"</span>, <span class="string">"VNI"</span>: <span class="number">18888</span> &#125; &#125;）</span><br><span class="line">    bm.GetBackend：获取后端实体，为后面服务</span><br><span class="line">    RegisterNetwork：只分析vxlan的实现。</span><br><span class="line">        newVXLANDevice：创建vxlan设备。包括创建vxlan的虚拟接口flannel<span class="number">.18888</span></span><br><span class="line">        be.subnetMgr.AcquireLease：尝试从etcd中分配一个子网。整体逻辑是能复用的子网复用，不能复用子网的新租用。同时子网的释放也在此处进行（存疑）</span><br><span class="line">    network.SetupAndEnsureIPTables：下发iptables表项。暂时略过</span><br><span class="line">    WriteSubnetFile： 和ReadSubnetFromSubnetFile是对称操作</span><br><span class="line">    bn.Run：后端实体的运行协程</span><br><span class="line">      subnet.WatchLeases：监控子网ip租期的协程。里面不停调用下级函数。</span><br><span class="line">          sm.WatchLeases：</span><br><span class="line">            m.registry.watchSubnets：读取etcd中相关的key为<span class="string">"/coreos.com/subnets"</span>(存疑）的value。每分配掉一个子网或是释放了一个子网则产生事件</span><br><span class="line">      nw.handleSubnetEvents：对事件进行处理的协程。</span><br><span class="line">         如果是子网分配事件subnet.EventAdded，当前操作系统下三条表项</span><br><span class="line">            arp：对端子网（也就是产生事件的子网）网关的mac地址是对端vtep的mac地址（linux操作系统中看到的flannel<span class="number">.18888</span>那个接口的mac）</span><br><span class="line">            fdb: 端口-mac表。要到对端vtep的mac地址必须从flannel配置的外网端口出去</span><br><span class="line">            路由表：到对端子网下一跳是对端子网网关</span><br><span class="line">          如果是子网释放事件subnet.EventRemoved，则是相反的操作（略过）</span><br></pre></td></tr></table></figure>
+<h4 id="flannel启动前相关的表项"><a href="#flannel启动前相关的表项" class="headerlink" title="flannel启动前相关的表项"></a>flannel启动前相关的表项</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">[root@centos2 ~]<span class="comment"># ip ad</span></span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN qlen 1</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 ::1/128 scope host</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">2: enp0s3: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000</span><br><span class="line">    link/ether 08:00:27:3a:f2:c9 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.31.27/24 brd 192.168.31.255 scope global enp0s3</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 fe80::a00:27ff:fe3a:f2c9/64 scope link</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">[root@centos2 ~]<span class="comment">#</span></span><br><span class="line">[root@centos2 ~]<span class="comment"># ip route</span></span><br><span class="line">default via 192.168.31.1 dev enp0s3</span><br><span class="line">169.254.0.0/16 dev enp0s3 scope link metric 1002</span><br><span class="line">192.168.31.0/24 dev enp0s3 proto kernel scope link src 192.168.31.27</span><br><span class="line">[root@centos2 ~]<span class="comment"># ip nei</span></span><br><span class="line">192.168.31.1 dev enp0s3 lladdr 48:7b:6b:d6:10:c4 STALE</span><br><span class="line">192.168.31.116 dev enp0s3 lladdr 08:00:27:63:bf:77 REACHABLE</span><br><span class="line">192.168.31.121 dev enp0s3 lladdr 48:4d:7e:df:e4:6d REACHABLE</span><br><span class="line">[root@centos2 ~]<span class="comment"># bridge fdb</span></span><br><span class="line">33:33:00:00:00:01 dev enp0s3 self permanent</span><br><span class="line">01:00:5e:00:00:01 dev enp0s3 self permanent</span><br><span class="line">33:33:ff:3a:f2:c9 dev enp0s3 self permanent</span><br></pre></td></tr></table></figure>
+<h4 id="flannel启动后相关的表项"><a href="#flannel启动后相关的表项" class="headerlink" title="flannel启动后相关的表项"></a>flannel启动后相关的表项</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">[root@centos2 ~]<span class="comment"># ip ad</span></span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN qlen 1</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 ::1/128 scope host</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">2: enp0s3: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000</span><br><span class="line">    link/ether 08:00:27:3a:f2:c9 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.31.27/24 brd 192.168.31.255 scope global enp0s3</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 fe80::a00:27ff:fe3a:f2c9/64 scope link</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">3: flannel.18888: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1450 qdisc noqueue state UNKNOWN</span><br><span class="line">    link/ether ea:27:46:35:e7:bb brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 1.1.9.0/32 scope global flannel.18888</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 fe80::e827:46ff:fe35:e7bb/64 scope link</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">4: docker0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1450 qdisc noqueue state UP</span><br><span class="line">    link/ether 02:42:05:f9:c5:a4 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 1.1.9.1/24 brd 1.1.9.255 scope global docker0</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">    inet6 fe80::42:5ff:fef9:c5a4/64 scope link</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">6: veth477d1b3@if5: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1450 qdisc noqueue master docker0 state UP</span><br><span class="line">    link/ether b6:7f:1f:4f:ab:bf brd ff:ff:ff:ff:ff:ff link-netnsid 0</span><br><span class="line">    inet6 fe80::b47f:1fff:fe4f:abbf/64 scope link</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">[root@centos2 ~]<span class="comment"># ip route</span></span><br><span class="line">default via 192.168.31.1 dev enp0s3</span><br><span class="line">1.1.9.0/24 dev docker0 proto kernel scope link src 1.1.9.1</span><br><span class="line"><span class="comment"># 新增的ROUTE表项</span></span><br><span class="line">1.1.95.0/24 via 1.1.95.0 dev flannel.18888 onlink</span><br><span class="line">169.254.0.0/16 dev enp0s3 scope link metric 1002</span><br><span class="line">192.168.31.0/24 dev enp0s3 proto kernel scope link src 192.168.31.27</span><br><span class="line">[root@centos2 ~]<span class="comment"># ip nei</span></span><br><span class="line">192.168.31.1 dev enp0s3 lladdr 48:7b:6b:d6:10:c4 STALE</span><br><span class="line">192.168.31.116 dev enp0s3 lladdr 08:00:27:63:bf:77 REACHABLE</span><br><span class="line">192.168.31.121 dev enp0s3 lladdr 48:4d:7e:df:e4:6d REACHABLE</span><br><span class="line"><span class="comment"># 新增的ARP表项</span></span><br><span class="line">1.1.95.0 dev flannel.18888 lladdr 7e:b8:53:ac:90:d3 PERMANENT</span><br><span class="line">[root@centos2 ~]<span class="comment">#  bridge fdb</span></span><br><span class="line">33:33:00:00:00:01 dev enp0s3 self permanent</span><br><span class="line">01:00:5e:00:00:01 dev enp0s3 self permanent</span><br><span class="line">33:33:ff:3a:f2:c9 dev enp0s3 self permanent</span><br><span class="line"><span class="comment"># 新增的FDB表项</span></span><br><span class="line">7e:b8:53:ac:90:d3 dev flannel.18888 dst 192.168.31.116 self permanent</span><br><span class="line">33:33:00:00:00:01 dev docker0 self permanent</span><br><span class="line">01:00:5e:00:00:01 dev docker0 self permanent</span><br><span class="line">33:33:ff:f9:c5:a4 dev docker0 self permanent</span><br><span class="line">02:42:05:f9:c5:a4 dev docker0 master docker0 permanent</span><br><span class="line">02:42:05:f9:c5:a4 dev docker0 vlan 1 master docker0 permanent</span><br><span class="line">b6:7f:1f:4f:ab:bf dev veth477d1b3 master docker0 permanent</span><br><span class="line">b6:7f:1f:4f:ab:bf dev veth477d1b3 vlan 1 master docker0 permanent</span><br><span class="line">33:33:00:00:00:01 dev veth477d1b3 self permanent</span><br><span class="line">01:00:5e:00:00:01 dev veth477d1b3 self permanent</span><br><span class="line">33:33:ff:4f:ab:bf dev veth477d1b3 self permanent</span><br></pre></td></tr></table></figure>
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flannel/" rel="tag"># flannel</a>
+          
+            <a href="/tags/vxlan/" rel="tag"># vxlan</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/03/12/flannel部署实战/" rel="next" title="flannel部署实战">
+                <i class="fa fa-chevron-left"></i> flannel部署实战
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/03/13/golang函数式编程一点尝试/" rel="prev" title="golang函数式编程一点尝试">
+                golang函数式编程一点尝试 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">frankiezdh</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">9</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">11</span>
+                    <span class="site-state-item-name">tags</span>
+                  
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#代码简要分析"><span class="nav-number">1.</span> <span class="nav-text">代码简要分析</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#flannel启动前相关的表项"><span class="nav-number">2.</span> <span class="nav-text">flannel启动前相关的表项</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#flannel启动后相关的表项"><span class="nav-number">3.</span> <span class="nav-text">flannel启动后相关的表项</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">frankiezdh</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/theme-next/hexo-theme-next">NexT.Pisces</a> v6.0.6</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.0.6"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.0.6"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.0.6"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.0.6"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.0.6"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.0.6"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.0.6"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
